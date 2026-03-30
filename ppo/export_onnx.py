@@ -44,6 +44,17 @@ def export(checkpoint_path: str, output_path: str = "cartpole.onnx"):
         opset_version=17,
     )
 
+    # Ensure all weights are inlined (no external .data file)
+    import onnx
+    model_proto = onnx.load(output_path)
+    onnx.save(model_proto, output_path, save_as_external_data=False)
+
+    # Remove stale .data file if it was created
+    import os
+    data_file = output_path + ".data"
+    if os.path.exists(data_file):
+        os.remove(data_file)
+
     # Verify
     with torch.no_grad():
         torch_logits = actor_only(dummy_input)
