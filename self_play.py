@@ -1,3 +1,4 @@
+import multiprocessing as mp
 from dataclasses import dataclass
 
 import numpy as np
@@ -71,17 +72,43 @@ def play_game(model: AlphaZeroNet, config: Config, device: str = "cpu") -> list[
     return augmented
 
 
-def generate_self_play_data(model: AlphaZeroNet, config: Config,
-                            device: str = "cpu") -> list[TrainingExample]:
-    """Generate self-play data for one iteration.
+def _worker_play_games(args: tuple) -> list[TrainingExample]:
+    """Worker function for multiprocessing. Reconstructs model from state_dict."""
+    state_dict, config, num_games = args
+    torch.set_num_threads(1)  # avoid thread contention between workers
 
-    Uses sequential play (multiprocessing complicates CUDA).
-    """
-    all_examples = []
+    model = AlphaZeroNet(
+        rows=config.rows, cols=config.cols,
+        num_res_blocks=config.num_res_blocks,
+        num_channels=config.num_channels,
+    )
+    model.load_state_dict(state_dict)
     model.eval()
 
-    for _ in range(config.games_per_iteration):
-        examples = play_game(model, config, device=device)
-        all_examples.extend(examples)
+    all_examples = []
+    for _ in range(num_games):
+        all_examples.extend(play_game(model, config, device="cpu"))
+    return all_examples
 
+
+def generate_self_play_data(model: AlphaZeroNet, config: Config,
+                            device: str = "cpu") -> list[TrainingExample]:
+    """Generate self-play data for one iteration using parallel workers."""
+    model.eval()
+    state_dict = model.state_dict()
+
+    num_workers = config.num_parallel_games
+    # Distribute games evenly across workers
+    games_per_worker = [config.games_per_iteration // num_workers] * num_workers
+    for i in range(config.games_per_iteration % num_workers):
+        games_per_worker[i] += 1
+
+    worker_args = [(state_dict, config, n) for n in games_per_worker]
+
+    with mp.Pool(num_workers) as pool:
+        results = pool.map(_worker_play_games, worker_args)
+
+    all_examples = []
+    for examples in results:
+        all_examples.extend(examples)
     return all_examples
