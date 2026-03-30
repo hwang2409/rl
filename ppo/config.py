@@ -29,7 +29,7 @@ class PPOConfig:
     anneal_lr: bool = True
 
     # Training
-    total_timesteps: int = 1_000_000
+    total_timesteps: int = 2_000_000
 
     # Network
     hidden_dim: int = 64
