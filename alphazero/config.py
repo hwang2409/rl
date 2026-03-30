@@ -13,15 +13,15 @@ class Config:
     num_channels: int = 64
 
     # MCTS
-    num_simulations: int = 100
+    num_simulations: int = 200
     c_puct: float = 1.5
     dirichlet_alpha: float = 1.0
     dirichlet_epsilon: float = 0.25
     temperature_threshold: int = 15
 
     # Training
-    num_iterations: int = 20
-    games_per_iteration: int = 50
+    num_iterations: int = 40
+    games_per_iteration: int = 100
     num_parallel_games: int = 8
     batch_size: int = 128
     train_epochs: int = 4
