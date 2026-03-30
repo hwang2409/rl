@@ -26,24 +26,29 @@ class TestGAE:
     def test_terminal_zeroes_bootstrap(self):
         """When episode terminates, next value should be zero."""
         buf = RolloutBuffer(2, 1, 2, 1)
+        # Step 0: not terminal (terminateds[0]=0), reward=1.0, value=0.5
         buf.add(np.zeros((1, 2)), np.zeros((1, 1)), np.zeros(1),
                 np.array([1.0]), np.array([0.0]), np.array([0.5]))
+        # Step 1: terminal (terminateds[1]=1), reward=2.0, value=0.3
         buf.add(np.zeros((1, 2)), np.zeros((1, 1)), np.zeros(1),
                 np.array([2.0]), np.array([1.0]), np.array([0.3]))
 
+        # last_terminated matches terminateds[-1] as in real training
         last_value = np.array([0.0])
-        last_terminated = np.array([0.0])
+        last_terminated = np.array([1.0])
         buf.compute_advantages(last_value, last_terminated, gamma=0.99, gae_lambda=0.95)
 
-        # Step 1 (t=1): terminal. next_non_terminal for last_value=0 would be 1.0,
-        # but terminateds[1]=1.0 so when computing t=0, next_non_terminal = 1 - terminateds[1] = 0
-        # delta_1 = 2.0 + 0.99*0.0*1.0 - 0.3 = 1.7 (using last_value since t=1 is last step)
-        delta_1 = 2.0 + 0.99 * 0.0 * 1.0 - 0.3
+        # t=1 (last step): terminateds[1]=1, so last_terminated=1
+        # next_non_terminal = 1 - 1 = 0, zeroes out bootstrap
+        # delta_1 = 2.0 + 0.99*0.0*0 - 0.3 = 1.7
+        delta_1 = 2.0 - 0.3
         adv_1 = delta_1
-        # delta_0 = 1.0 + 0.99*values[1]*next_non_term - 0.5
-        # next_non_term = 1 - terminateds[1] = 0
-        delta_0 = 1.0 + 0.99 * 0.3 * 0.0 - 0.5
-        adv_0 = delta_0 + 0.99 * 0.95 * 0.0 * adv_1
+
+        # t=0: terminateds[0]=0, action was not terminal, next state valid
+        # next_non_terminal = 1 - 0 = 1, bootstraps from values[1]=0.3
+        # delta_0 = 1.0 + 0.99*0.3*1 - 0.5 = 0.797
+        delta_0 = 1.0 + 0.99 * 0.3 - 0.5
+        adv_0 = delta_0 + 0.99 * 0.95 * 1.0 * adv_1
 
         assert abs(buf.advantages[1, 0] - adv_1) < 1e-5
         assert abs(buf.advantages[0, 0] - adv_0) < 1e-5

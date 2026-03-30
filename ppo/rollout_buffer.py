@@ -69,7 +69,7 @@ class RolloutBuffer:
                 next_non_terminal = 1.0 - last_terminated
                 next_value = last_value
             else:
-                next_non_terminal = 1.0 - self.terminateds[t + 1]
+                next_non_terminal = 1.0 - self.terminateds[t]
                 next_value = self.values[t + 1]
 
             delta = self.rewards[t] + gamma * next_value * next_non_terminal - self.values[t]
