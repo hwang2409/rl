@@ -89,4 +89,4 @@ class DiscreteActorCritic(nn.Module):
 
     def evaluate_actions(self, obs: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         dist, value = self.forward(obs)
-        return dist.log_prob(actions), dist.entropy(), value.squeeze(-1)
+        return dist.log_prob(actions.squeeze(-1)), dist.entropy(), value.squeeze(-1)
